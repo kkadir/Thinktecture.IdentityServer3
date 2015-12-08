@@ -14,62 +14,64 @@
  * limitations under the License.
  */
 
+using IdentityModel;
+using IdentityServer3.Core.Configuration;
+using IdentityServer3.Core.Extensions;
+using IdentityServer3.Core.Logging;
+using IdentityServer3.Core.Models;
+using IdentityServer3.Core.Services;
+using Microsoft.Owin;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using System.Web.Http;
-using Thinktecture.IdentityModel;
-using Thinktecture.IdentityServer.Core.Configuration;
-using Thinktecture.IdentityServer.Core.Extensions;
-using Thinktecture.IdentityServer.Core.Logging;
-using Thinktecture.IdentityServer.Core.Services;
 
-#pragma warning disable 1591
-
-namespace Thinktecture.IdentityServer.Core.Endpoints
+namespace IdentityServer3.Core.Endpoints
 {
     /// <summary>
     /// OpenID Connect discovery document endpoint
     /// </summary>
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public class DiscoveryEndpointController : ApiController
+    internal class DiscoveryEndpointController : ApiController
     {
         private readonly static ILog Logger = LogProvider.GetCurrentClassLogger();
         private readonly IdentityServerOptions _options;
         private readonly IScopeStore _scopes;
+        private readonly IOwinContext _context;
 
         static readonly JsonSerializerSettings Settings = new JsonSerializerSettings
         {
             NullValueHandling = NullValueHandling.Ignore
         };
 
-        public DiscoveryEndpointController(IdentityServerOptions options, IScopeStore scopes)
+        public DiscoveryEndpointController(IdentityServerOptions options, IScopeStore scopes, IOwinContext context)
         {
             _options = options;
             _scopes = scopes;
+            _context = context;
         }
 
         /// <summary>
         /// GET
         /// </summary>
         /// <returns>Discovery document</returns>
-        [Route(Constants.RoutePaths.Oidc.DiscoveryConfiguration)]
+        [HttpGet]
         public async Task<IHttpActionResult> GetConfiguration()
         {
             Logger.Info("Start discovery request");
 
-            if (!_options.Endpoints.EnableDiscoveryEndpoint)
-            {
-                Logger.Warn("Endpoint is disabled. Aborting");
-                return NotFound();
-            }
-
             var baseUrl = Request.GetIdentityServerBaseUrl();
             var scopes = await _scopes.GetScopesAsync(publicOnly: true);
+
+            var claims = new List<string>();
+            foreach (var s in scopes)
+            {
+                claims.AddRange(from c in s.Claims 
+                                where s.Type == ScopeType.Identity 
+                                select c.Name);
+            }
 
             var supportedGrantTypes = Constants.SupportedGrantTypes.AsEnumerable();
             if (this._options.AuthenticationOptions.EnableLocalLogin == false)
@@ -79,14 +81,21 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
 
             var dto = new DiscoveryDto
             {
-                issuer = _options.IssuerUri,
+                issuer = _context.GetIdentityServerIssuerUri(),
                 scopes_supported = scopes.Where(s => s.ShowInDiscoveryDocument).Select(s => s.Name).ToArray(),
+                claims_supported = claims.Distinct().ToArray(),
                 response_types_supported = Constants.SupportedResponseTypes.ToArray(),
                 response_modes_supported = Constants.SupportedResponseModes.ToArray(),
                 grant_types_supported = supportedGrantTypes.ToArray(),
                 subject_types_supported = new[] { "public" },
-                id_token_signing_alg_values_supported = new[] { Constants.SigningAlgorithms.RSA_SHA_256 }
+                id_token_signing_alg_values_supported = new[] { Constants.SigningAlgorithms.RSA_SHA_256 },
+                token_endpoint_auth_methods_supported = new[] { Constants.TokenEndpointAuthenticationMethods.PostBody, Constants.TokenEndpointAuthenticationMethods.BasicAuthentication },
             };
+
+            if (_options.Endpoints.EnableEndSessionEndpoint)
+            {
+                dto.http_logout_supported = true;
+            }
 
             if (_options.Endpoints.EnableAuthorizeEndpoint)
             {
@@ -118,6 +127,11 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
                 dto.revocation_endpoint = baseUrl + Constants.RoutePaths.Oidc.Revocation;
             }
 
+            if (_options.Endpoints.EnableIntrospectionEndpoint)
+            {
+                dto.introspection_endpoint = baseUrl + Constants.RoutePaths.Oidc.Introspection;
+            }
+
             if (_options.SigningCertificate != null)
             {
                 dto.jwks_uri = baseUrl + Constants.RoutePaths.Oidc.DiscoveryWebKeys;
@@ -130,16 +144,10 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
         /// GET for JWKs
         /// </summary>
         /// <returns>JSON Web Key set</returns>
-        [Route(Constants.RoutePaths.Oidc.DiscoveryWebKeys)]
+        [HttpGet]
         public IHttpActionResult GetKeyData()
         {
             Logger.Info("Start key discovery request");
-
-            if (!_options.Endpoints.EnableDiscoveryEndpoint)
-            {
-                Logger.Warn("Endpoint is disabled. Aborting");
-                return NotFound();
-            }
 
             var webKeys = new List<JsonWebKeyDto>();
             foreach (var pubKey in _options.PublicKeysForMetadata)
@@ -181,12 +189,16 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
             public string end_session_endpoint { get; set; }
             public string check_session_iframe { get; set; }
             public string revocation_endpoint { get; set; }
+            public string introspection_endpoint { get; set; }
+            public bool? http_logout_supported { get; set; }
             public string[] scopes_supported { get; set; }
+            public string[] claims_supported { get; set; }
             public string[] response_types_supported { get; set; }
             public string[] response_modes_supported { get; set; }
             public string[] grant_types_supported { get; set; }
             public string[] subject_types_supported { get; set; }
             public string[] id_token_signing_alg_values_supported { get; set; }
+            public string[] token_endpoint_auth_methods_supported { get; set; }
         };
 
         private class JsonWebKeyDto

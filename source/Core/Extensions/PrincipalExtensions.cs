@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
+using IdentityModel;
 using System;
+using System.Linq;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Security.Claims;
 using System.Security.Principal;
-using Thinktecture.IdentityModel.Extensions;
 
-namespace Thinktecture.IdentityServer.Core.Extensions
+namespace IdentityServer3.Core.Extensions
 {
     /// <summary>
     /// Extension methods for <see cref="System.Security.Principal.IPrincipal"/> and <see cref="System.Security.Principal.IIdentity"/> .
@@ -131,6 +133,17 @@ namespace Thinktecture.IdentityServer.Core.Extensions
         }
 
         /// <summary>
+        /// Gets the authentication method claims.
+        /// </summary>
+        /// <param name="principal">The principal.</param>
+        /// <returns></returns>
+        [DebuggerStepThrough]
+        public static IEnumerable<Claim> GetAuthenticationMethods(this IPrincipal principal)
+        {
+            return principal.Identity.GetAuthenticationMethods();
+        }
+
+        /// <summary>
         /// Gets the authentication method.
         /// </summary>
         /// <param name="identity">The identity.</param>
@@ -144,6 +157,18 @@ namespace Thinktecture.IdentityServer.Core.Extensions
 
             if (claim == null) throw new InvalidOperationException("amr claim is missing");
             return claim.Value;
+        }
+
+        /// <summary>
+        /// Gets the authentication method claims.
+        /// </summary>
+        /// <param name="identity">The identity.</param>
+        /// <returns></returns>
+        [DebuggerStepThrough]
+        public static IEnumerable<Claim> GetAuthenticationMethods(this IIdentity identity)
+        {
+            var id = identity as ClaimsIdentity;
+            return id.FindAll(Constants.ClaimTypes.AuthenticationMethod);
         }
 
         /// <summary>

@@ -14,24 +14,26 @@
  * limitations under the License.
  */
 
+using IdentityServer3.Core.Extensions;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
-using Thinktecture.IdentityServer.Core.Extensions;
+using System.Linq;
 
-namespace Thinktecture.IdentityServer.Core.Services.Default
+namespace IdentityServer3.Core.Services.Default
 {
     internal class AssetManager
     {
-        public const string HttpAssetsNamespace = "Thinktecture.IdentityServer.Core.Services.DefaultViewService.HttpAssets";
+        public const string HttpAssetsNamespace = "IdentityServer3.Core.Services.DefaultViewService.HttpAssets";
         public const string FontAssetsNamespace = HttpAssetsNamespace + ".libs.bootstrap.fonts";
 
-        public const string PageAssetsNamespace = "Thinktecture.IdentityServer.Core.Services.DefaultViewService.PageAssets";
+        public const string PageAssetsNamespace = "IdentityServer3.Core.Services.DefaultViewService.PageAssets";
         const string PagesPrefix = PageAssetsNamespace + ".";
         const string Layout = PagesPrefix + "layout.html";
         const string FormPostResponse = PagesPrefix + "FormPostResponse.html";
         const string CheckSession = PagesPrefix + "checksession.html";
+        const string SignoutFrame = PagesPrefix + "SignoutFrame.html";
         const string Welcome = PagesPrefix + "welcome.html";
 
         static readonly ResourceCache cache = new ResourceCache();
@@ -78,6 +80,21 @@ namespace Thinktecture.IdentityServer.Core.Services.Default
             {
                 rootUrl,
                 cookieName
+            });
+        }
+
+        public static string LoadSignoutFrame(IEnumerable<string> frameUrls)
+        {
+            string frames = null;
+            if (frameUrls != null && frameUrls.Any())
+            {
+                frameUrls = frameUrls.Select(x => String.Format("<iframe src='{0}'></iframe>", x));
+                frames = frameUrls.Aggregate((x, y) => x + Environment.NewLine + y);
+            }
+
+            return LoadResourceString(SignoutFrame, new
+            {
+                frames
             });
         }
 

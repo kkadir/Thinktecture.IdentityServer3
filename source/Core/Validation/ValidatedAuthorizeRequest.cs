@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
+using IdentityServer3.Core.Models;
 using System.Collections.Generic;
-using Thinktecture.IdentityServer.Core.Models;
 
-namespace Thinktecture.IdentityServer.Core.Validation
+namespace IdentityServer3.Core.Validation
 {
     /// <summary>
     /// Models a validated request to the authorize endpoint.
@@ -169,14 +169,6 @@ namespace Thinktecture.IdentityServer.Core.Validation
         public string LoginHint { get; set; }
 
         /// <summary>
-        /// Gets or sets the session identifier.
-        /// </summary>
-        /// <value>
-        /// The session identifier.
-        /// </value>
-        public string SessionId { get; set; }
-
-        /// <summary>
         /// Gets a value indicating whether an access token was requested.
         /// </summary>
         /// <value>
@@ -188,6 +180,7 @@ namespace Thinktecture.IdentityServer.Core.Validation
             {
                 return (ResponseType == Constants.ResponseTypes.IdTokenToken ||
                         ResponseType == Constants.ResponseTypes.Code ||
+                        ResponseType == Constants.ResponseTypes.CodeIdToken ||
                         ResponseType == Constants.ResponseTypes.CodeToken ||
                         ResponseType == Constants.ResponseTypes.CodeIdTokenToken);
             }

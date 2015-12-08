@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-using Thinktecture.IdentityServer.Core.Extensions;
+using System;
+using IdentityServer3.Core.Extensions;
 
 namespace Owin
 {
@@ -30,13 +31,15 @@ namespace Owin
             app.Use(async (ctx, next) =>
             {
                 var request = ctx.Request;
-                if (publicOrigin.IsMissing())
+
+                var origin = publicOrigin;
+                if (origin.IsMissing())
                 {
-                    publicOrigin = request.Uri.Scheme + "://" + request.Host.Value;
+                    origin = ctx.Environment.GetIdentityServerOrigin();
                 }
-                
-                ctx.Environment.SetIdentityServerHost(publicOrigin);
-                ctx.Environment.SetIdentityServerBasePath(ctx.Request.PathBase.Value.EnsureTrailingSlash());
+
+                ctx.Environment.SetIdentityServerHost(origin);
+                ctx.Environment.SetIdentityServerBasePath(request.PathBase.Value.EnsureTrailingSlash());
 
                 await next();
             });

@@ -14,30 +14,26 @@
  * limitations under the License.
  */
 
-using System.ComponentModel;
+using IdentityServer3.Core.Configuration;
+using IdentityServer3.Core.Configuration.Hosting;
+using IdentityServer3.Core.Events;
+using IdentityServer3.Core.Extensions;
+using IdentityServer3.Core.Logging;
+using IdentityServer3.Core.Resources;
+using IdentityServer3.Core.Services;
+using IdentityServer3.Core.Validation;
+using System.Collections.Specialized;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Http;
-using Thinktecture.IdentityServer.Core.Configuration;
-using Thinktecture.IdentityServer.Core.Configuration.Hosting;
-using Thinktecture.IdentityServer.Core.Events;
-using Thinktecture.IdentityServer.Core.Extensions;
-using Thinktecture.IdentityServer.Core.Logging;
-using Thinktecture.IdentityServer.Core.Resources;
-using Thinktecture.IdentityServer.Core.Services;
-using Thinktecture.IdentityServer.Core.Validation;
 
-#pragma warning disable 1591
-
-namespace Thinktecture.IdentityServer.Core.Endpoints
+namespace IdentityServer3.Core.Endpoints
 {
     /// <summary>
     /// Endpoint for validating access tokens
     /// </summary>
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    [RoutePrefix(Constants.RoutePaths.Oidc.AccessTokenValidation)]
     [NoCache]
-    public class AccessTokenValidationController : ApiController
+    internal class AccessTokenValidationController : ApiController
     {
         private readonly static ILog Logger = LogProvider.GetCurrentClassLogger();
         private readonly TokenValidator _validator;
@@ -57,29 +53,37 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
         /// GET
         /// </summary>
         /// <returns>Claims if token is valid</returns>
-        [Route]
+        [HttpGet]
         public async Task<IHttpActionResult> Get()
         {
             Logger.Info("Start access token validation request");
 
-            if (!_options.Endpoints.EnableAccessTokenValidationEndpoint)
-            {
-                var error = "Endpoint is disabled. Aborting";
-                Logger.Warn(error);
-                RaiseFailureEvent(error);
-
-                return NotFound();
-            }
-
             var parameters = Request.RequestUri.ParseQueryString();
+            return await ProcessRequest(parameters);
+        }
 
+        /// <summary>
+        /// POST
+        /// </summary>
+        /// <returns>Claims if token is valid</returns>
+        [HttpPost]
+        public async Task<IHttpActionResult> Post()
+        {
+            Logger.Info("Start access token validation request");
+
+            var parameters = await Request.GetOwinContext().ReadRequestFormAsNameValueCollectionAsync();
+            return await ProcessRequest(parameters);
+        }
+
+        internal async Task<IHttpActionResult> ProcessRequest(NameValueCollection parameters)
+        {
             var token = parameters.Get("token");
             if (token.IsMissing())
             {
                 var error = "token is missing";
 
                 Logger.Error(error);
-                RaiseFailureEvent(error);
+                await RaiseFailureEventAsync(error);
                 return BadRequest(_localizationService.GetMessage(MessageIds.MissingToken));
             }
 
@@ -88,7 +92,7 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
             if (result.IsError)
             {
                 Logger.Info("Returning error: " + result.Error);
-                RaiseFailureEvent(result.Error);
+                await RaiseFailureEventAsync(result.Error);
 
                 return BadRequest(result.Error);
             }
@@ -96,19 +100,19 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
             var response = result.Claims.ToClaimsDictionary();
 
             Logger.Info("End access token validation request");
-            RaiseSuccessEvent();
+            await RaiseSuccessEventAsync();
 
             return Json(response);
         }
 
-        private void RaiseSuccessEvent()
+        private async Task RaiseSuccessEventAsync()
         {
-            _events.RaiseSuccessfulEndpointEvent(EventConstants.EndpointNames.AccessTokenValidation);
+            await _events.RaiseSuccessfulEndpointEventAsync(EventConstants.EndpointNames.AccessTokenValidation);
         }
 
-        private void RaiseFailureEvent(string error)
+        private async Task RaiseFailureEventAsync(string error)
         {
-            _events.RaiseFailureEndpointEvent(EventConstants.EndpointNames.AccessTokenValidation, error);
+            await _events.RaiseFailureEndpointEventAsync(EventConstants.EndpointNames.AccessTokenValidation, error);
         }
     }
 }

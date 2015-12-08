@@ -14,18 +14,10 @@
  * limitations under the License.
  */
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace Thinktecture.IdentityServer.Core.Validation
+namespace IdentityServer3.Core.Validation
 {
-    public class TokenRevocationRequestValidationResult
+    internal class TokenRevocationRequestValidationResult : ValidationResult
     {
-        public bool IsError { get; set; }
-        public string Error { get; set; }
-
         public string TokenTypeHint { get; set; }
         public string Token { get; set; }
     }

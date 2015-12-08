@@ -15,13 +15,13 @@
  */
 
 using FluentAssertions;
+using IdentityServer3.Core;
+using IdentityServer3.Tests.Endpoints;
 using System.Net;
 using System.Net.Http;
-using Thinktecture.IdentityServer.Core;
-using Thinktecture.IdentityServer.Tests.Endpoints;
 using Xunit;
 
-namespace Thinktecture.IdentityServer.Tests.Connect.Endpoints
+namespace IdentityServer3.Tests.Connect.Endpoints
 {
     
     public class AuthorizeEndpointControllerTests : IdSvrHostTestBase
@@ -36,7 +36,11 @@ namespace Thinktecture.IdentityServer.Tests.Connect.Endpoints
         [Fact]
         public void GetAuthorize_AuthorizeEndpointDisabled_ReturnsNotFound()
         {
-            base.options.Endpoints.EnableAuthorizeEndpoint = false;
+            ConfigureIdentityServerOptions = opts =>
+            {
+                opts.Endpoints.EnableAuthorizeEndpoint = false;
+            };
+            base.Init();
             var resp = Get(Constants.RoutePaths.Oidc.Authorize);
             resp.StatusCode.Should().Be(HttpStatusCode.NotFound);
         }

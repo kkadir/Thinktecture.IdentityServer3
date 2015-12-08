@@ -14,35 +14,31 @@
  * limitations under the License.
  */
 
+using IdentityServer3.Core.Configuration;
+using IdentityServer3.Core.Configuration.Hosting;
+using IdentityServer3.Core.Events;
+using IdentityServer3.Core.Extensions;
+using IdentityServer3.Core.Logging;
+using IdentityServer3.Core.Models;
+using IdentityServer3.Core.Resources;
+using IdentityServer3.Core.Results;
+using IdentityServer3.Core.Services;
+using IdentityServer3.Core.ViewModels;
 using System;
-using System.ComponentModel;
 using System.Linq;
 using System.Net.Http;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using System.Web.Http;
-using Thinktecture.IdentityServer.Core.Configuration;
-using Thinktecture.IdentityServer.Core.Configuration.Hosting;
-using Thinktecture.IdentityServer.Core.Events;
-using Thinktecture.IdentityServer.Core.Extensions;
-using Thinktecture.IdentityServer.Core.Logging;
-using Thinktecture.IdentityServer.Core.Models;
-using Thinktecture.IdentityServer.Core.Resources;
-using Thinktecture.IdentityServer.Core.Results;
-using Thinktecture.IdentityServer.Core.Services;
-using Thinktecture.IdentityServer.Core.ViewModels;
 
-#pragma warning disable 1591
-
-namespace Thinktecture.IdentityServer.Core.Endpoints
+namespace IdentityServer3.Core.Endpoints
 {
-    [EditorBrowsable(EditorBrowsableState.Never)]
     [ErrorPageFilter]
     [HostAuthentication(Constants.PrimaryAuthenticationType)]
     [SecurityHeaders]
     [NoCache]
     [PreventUnsupportedRequestMediaTypes(allowFormUrlEncoded: true)]
-    public class ClientPermissionsController : ApiController
+    internal class ClientPermissionsController : ApiController
     {
         private readonly static ILog Logger = LogProvider.GetCurrentClassLogger();
 
@@ -69,18 +65,10 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
             this.antiForgeryToken = antiForgeryToken;
         }
 
-        [Route(Constants.RoutePaths.ClientPermissions)]
         [HttpGet]
         public async Task<IHttpActionResult> ShowPermissions()
         {
             Logger.Info("Permissions page requested");
-
-            if (!options.Endpoints.EnableClientPermissionsEndpoint)
-            {
-                Logger.Error("Permissions page disabled, returning 404");
-                eventService.RaiseFailureEndpointEvent(EventConstants.EndpointNames.ClientPermissions, "endpoint disabled");
-                return NotFound();
-            }
 
             if (User == null || User.Identity == null || User.Identity.IsAuthenticated == false)
             {
@@ -93,19 +81,11 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
             return await RenderPermissionsPage();
         }
 
-        [Route(Constants.RoutePaths.ClientPermissions, Name = Constants.RouteNames.ClientPermissions)]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IHttpActionResult> RevokePermission(RevokeClientPermission model)
         {
             Logger.Info("Revoke permissions requested");
-            
-            if (!options.Endpoints.EnableClientPermissionsEndpoint)
-            {
-                Logger.Error("Permissions page disabled, returning 404");
-                eventService.RaiseFailureEndpointEvent(EventConstants.EndpointNames.ClientPermissions, "endpoint disabled");
-                return NotFound();
-            }
             
             if (User == null || User.Identity == null || User.Identity.IsAuthenticated == false)
             {
@@ -129,8 +109,8 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
             Logger.InfoFormat("Revoking permissions for sub: {0}, name: {1}, clientID: {2}", User.GetSubjectId(), User.Identity.Name, model.ClientId);
             
             await this.clientPermissionsService.RevokeClientPermissionsAsync(User.GetSubjectId(), model.ClientId);
-            
-            eventService.RaiseClientPermissionsRevokedEvent(User as ClaimsPrincipal, model.ClientId);
+
+            await eventService.RaiseClientPermissionsRevokedEventAsync(User as ClaimsPrincipal, model.ClientId);
 
             Logger.Info("Redirecting back to permissions page");
 

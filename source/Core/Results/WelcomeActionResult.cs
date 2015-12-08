@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-using System;
+using IdentityServer3.Core.Extensions;
+using IdentityServer3.Core.Services.Default;
 using Microsoft.Owin;
+using System;
 using System.Diagnostics;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
-using Thinktecture.IdentityServer.Core.Extensions;
-using Thinktecture.IdentityServer.Core.Services.Default;
 
-namespace Thinktecture.IdentityServer.Core.Results
+namespace IdentityServer3.Core.Results
 {
     internal class WelcomeActionResult : IHttpActionResult
     {

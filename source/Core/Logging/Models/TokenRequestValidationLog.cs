@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
+using IdentityServer3.Core.Extensions;
+using IdentityServer3.Core.Validation;
 using System.Collections.Generic;
-using Thinktecture.IdentityServer.Core.Extensions;
-using Thinktecture.IdentityServer.Core.Validation;
+using System.Linq;
 
-namespace Thinktecture.IdentityServer.Core.Logging
+namespace IdentityServer3.Core.Logging
 {
     internal class TokenRequestValidationLog
     {
@@ -29,7 +30,7 @@ namespace Thinktecture.IdentityServer.Core.Logging
 
         public string AuthorizationCode { get; set; }
         public string RefreshToken { get; set; }
-        
+
         public string UserName { get; set; }
         public IEnumerable<string> AuthenticationContextReferenceClasses { get; set; }
         public string Tenant { get; set; }
@@ -37,11 +38,23 @@ namespace Thinktecture.IdentityServer.Core.Logging
 
         public Dictionary<string, string> Raw { get; set; }
 
+        private static IReadOnlyCollection<string> SensitiveData = new List<string>()
+            {
+                Constants.TokenRequest.Password,
+                Constants.TokenRequest.Assertion,
+                Constants.TokenRequest.ClientSecret,
+                Constants.TokenRequest.ClientAssertion
+            };
+
         public TokenRequestValidationLog(ValidatedTokenRequest request)
         {
-            if (request.Options.LoggingOptions.IncludeSensitiveDataInLogs)
+            const string scrubValue = "******";
+            
+            Raw = request.Raw.ToDictionary();
+            
+            foreach (var field in SensitiveData.Where(field => Raw.ContainsKey(field)))
             {
-                Raw = request.Raw.ToDictionary();
+                Raw[field] = scrubValue;
             }
 
             if (request.Client != null)

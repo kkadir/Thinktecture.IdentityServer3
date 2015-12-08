@@ -14,32 +14,27 @@
  * limitations under the License.
  */
 
-using System.ComponentModel;
+using IdentityServer3.Core.Configuration;
+using IdentityServer3.Core.Configuration.Hosting;
+using IdentityServer3.Core.Events;
+using IdentityServer3.Core.Extensions;
+using IdentityServer3.Core.Logging;
+using IdentityServer3.Core.ResponseHandling;
+using IdentityServer3.Core.Results;
+using IdentityServer3.Core.Services;
+using IdentityServer3.Core.Validation;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Http;
-using Thinktecture.IdentityServer.Core.Configuration;
-using Thinktecture.IdentityServer.Core.Configuration.Hosting;
-using Thinktecture.IdentityServer.Core.Events;
-using Thinktecture.IdentityServer.Core.Extensions;
-using Thinktecture.IdentityServer.Core.Logging;
-using Thinktecture.IdentityServer.Core.ResponseHandling;
-using Thinktecture.IdentityServer.Core.Results;
-using Thinktecture.IdentityServer.Core.Services;
-using Thinktecture.IdentityServer.Core.Validation;
 
-#pragma warning disable 1591
-
-namespace Thinktecture.IdentityServer.Core.Endpoints
+namespace IdentityServer3.Core.Endpoints
 {
     /// <summary>
     /// OpenID Connect userinfo endpoint
     /// </summary>
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    [RoutePrefix(Constants.RoutePaths.Oidc.UserInfo)]
     [NoCache]
-    public class UserInfoEndpointController : ApiController
+    internal class UserInfoEndpointController : ApiController
     {
         private readonly static ILog Logger = LogProvider.GetCurrentClassLogger();
 
@@ -71,28 +66,18 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
         /// </summary>
         /// <param name="request">The request.</param>
         /// <returns>userinfo response</returns>
-        [Route]
         [HttpGet, HttpPost]
         public async Task<IHttpActionResult> GetUserInfo(HttpRequestMessage request)
         {
             Logger.Info("Start userinfo request");
 
-            if (!_options.Endpoints.EnableUserInfoEndpoint)
-            {
-                var error = "Endpoint is disabled. Aborting";
-                Logger.Warn(error);
-                RaiseFailureEvent(error);
-
-                return NotFound();
-            }
-
-            var tokenUsageResult = await _tokenUsageValidator.ValidateAsync(request);
+            var tokenUsageResult = await _tokenUsageValidator.ValidateAsync(request.GetOwinContext());
             if (tokenUsageResult.TokenFound == false)
             {
                 var error = "No token found.";
 
                 Logger.Error(error);
-                RaiseFailureEvent(error);
+                await RaiseFailureEventAsync(error);
                 return Error(Constants.ProtectedResourceErrors.InvalidToken);
             }
 
@@ -105,7 +90,7 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
             if (tokenResult.IsError)
             {
                 Logger.Error(tokenResult.Error);
-                RaiseFailureEvent(tokenResult.Error);
+                await RaiseFailureEventAsync(tokenResult.Error);
                 return Error(tokenResult.Error);
             }
 
@@ -113,10 +98,10 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
             var subject = tokenResult.Claims.FirstOrDefault(c => c.Type == Constants.ClaimTypes.Subject).Value;
             var scopes = tokenResult.Claims.Where(c => c.Type == Constants.ClaimTypes.Scope).Select(c => c.Value);
 
-            var payload = await _generator.ProcessAsync(subject, scopes);
+            var payload = await _generator.ProcessAsync(subject, scopes, tokenResult.Client);
 
             Logger.Info("End userinfo request");
-            RaiseSuccessEvent();
+            await RaiseSuccessEventAsync();
 
             return new UserInfoResult(payload);
         }
@@ -126,16 +111,16 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
             return new ProtectedResourceErrorResult(error, description);
         }
 
-        private void RaiseSuccessEvent()
+        private async Task RaiseSuccessEventAsync()
         {
-            _events.RaiseSuccessfulEndpointEvent(EventConstants.EndpointNames.UserInfo);
+            await _events.RaiseSuccessfulEndpointEventAsync(EventConstants.EndpointNames.UserInfo);
         }
 
-        private void RaiseFailureEvent(string error)
+        private async Task RaiseFailureEventAsync(string error)
         {
             if (_options.EventsOptions.RaiseFailureEvents)
             {
-                _events.RaiseFailureEndpointEvent(EventConstants.EndpointNames.UserInfo, error);
+                await _events.RaiseFailureEndpointEventAsync(EventConstants.EndpointNames.UserInfo, error);
             }
         }
     }

@@ -14,20 +14,17 @@
  * limitations under the License.
  */
 
+using IdentityServer3.Core.Configuration;
+using IdentityServer3.Core.Logging;
+using IdentityServer3.Core.Results;
 using System.Web.Http;
-using Thinktecture.IdentityServer.Core.Configuration;
-using Thinktecture.IdentityServer.Core.Logging;
-using Thinktecture.IdentityServer.Core.Results;
 
-
-#pragma warning disable 1591
-
-namespace Thinktecture.IdentityServer.Core.Endpoints
+namespace IdentityServer3.Core.Endpoints
 {
     /// <summary>
     /// Check session iframe endpoint
     /// </summary>
-    public class CheckSessionEndpointController : ApiController
+    internal class CheckSessionEndpointController : ApiController
     {
         private readonly static ILog Logger = LogProvider.GetCurrentClassLogger();
         private readonly IdentityServerOptions _options;
@@ -41,16 +38,10 @@ namespace Thinktecture.IdentityServer.Core.Endpoints
         /// GET
         /// </summary>
         /// <returns>Check session iframe page</returns>
-        [Route(Constants.RoutePaths.Oidc.CheckSession, Name=Constants.RouteNames.Oidc.CheckSession)]
+        [HttpGet]
         public IHttpActionResult Get()
         {
             Logger.Info("Check session iframe request");
-
-            if (!_options.Endpoints.EnableCheckSessionEndpoint)
-            {
-                Logger.Warn("Endpoint is disabled. Aborting");
-                return NotFound();
-            }
 
             return new CheckSessionResult(this._options, Request);
         }
